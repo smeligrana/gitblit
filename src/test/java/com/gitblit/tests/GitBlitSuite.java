@@ -15,8 +15,12 @@
  */
 package com.gitblit.tests;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.lang.reflect.Field;
+import java.nio.file.Files;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -54,19 +58,18 @@ import com.gitblit.utils.JGitUtils;
  *
  */
 @RunWith(Suite.class)
-@SuiteClasses({ ArrayUtilsTest.class, FileUtilsTest.class, TimeUtilsTest.class,
-		StringUtilsTest.class, Base64Test.class, JsonUtilsTest.class, ByteFormatTest.class,
-		UserModelTest.class, UserChoiceTest.class,
-		ObjectCacheTest.class, PermissionsTest.class, UserServiceTest.class, LdapAuthenticationTest.class,
-		MarkdownUtilsTest.class, JGitUtilsTest.class, SyndicationUtilsTest.class,
-		DiffUtilsTest.class, MetricUtilsTest.class, X509UtilsTest.class,
-		GitBlitTest.class, FederationTests.class, RpcTests.class, GitServletTest.class, GitDaemonTest.class,
-		SshDaemonTest.class, GroovyScriptTest.class, LuceneExecutorTest.class, RepositoryModelTest.class,
-		FanoutServiceTest.class, Issue0259Test.class, Issue0271Test.class, HtpasswdAuthenticationTest.class,
-		ModelUtilsTest.class, JnaUtilsTest.class, LdapSyncServiceTest.class, FileTicketServiceTest.class,
-		BranchTicketServiceTest.class, RedisTicketServiceTest.class, AuthenticationManagerTest.class,
-		SshKeysDispatcherTest.class, UITicketTest.class, PathUtilsTest.class, SshKerberosAuthenticationTest.class,
-		GravatarTest.class, FilestoreManagerTest.class, FilestoreServletTest.class, TicketReferenceTest.class })
+@SuiteClasses({ ArrayUtilsTest.class, FileUtilsTest.class, TimeUtilsTest.class, StringUtilsTest.class, Base64Test.class,
+		JsonUtilsTest.class, ByteFormatTest.class, UserModelTest.class, UserChoiceTest.class, ObjectCacheTest.class,
+		PermissionsTest.class, UserServiceTest.class, LdapAuthenticationTest.class, MarkdownUtilsTest.class,
+		JGitUtilsTest.class, SyndicationUtilsTest.class, DiffUtilsTest.class, MetricUtilsTest.class,
+		X509UtilsTest.class, GitBlitTest.class, FederationTests.class, RpcTests.class, GitServletTest.class,
+		GitDaemonTest.class, SshDaemonTest.class, GroovyScriptTest.class, LuceneExecutorTest.class,
+		RepositoryModelTest.class, FanoutServiceTest.class, Issue0259Test.class, Issue0271Test.class,
+		HtpasswdAuthenticationTest.class, ModelUtilsTest.class, JnaUtilsTest.class, LdapSyncServiceTest.class,
+		FileTicketServiceTest.class, BranchTicketServiceTest.class, RedisTicketServiceTest.class,
+		AuthenticationManagerTest.class, SshKeysDispatcherTest.class, UITicketTest.class, PathUtilsTest.class,
+		SshKerberosAuthenticationTest.class, GravatarTest.class, FilestoreManagerTest.class, FilestoreServletTest.class,
+		TicketReferenceTest.class })
 public class GitBlitSuite {
 
 	public static final File BASEFOLDER = new File("data");
@@ -91,8 +94,31 @@ public class GitBlitSuite {
 
 	private static AtomicBoolean started = new AtomicBoolean(false);
 
-	public static Repository getHelloworldRepository() {
-		return getRepository("helloworld.git");
+	public static Repository getHelloworldRepository()  {
+		try {
+			File localPath = File.createTempFile("JGitTestRepository", "");
+			Files.delete(localPath.toPath());
+	
+			Git git = Git.init().setDirectory(localPath).call();
+	
+			Repository repository = git.getRepository();
+	
+			File myFile = new File(repository.getDirectory().getParent(), "java.java");
+			myFile.createNewFile();
+	
+			BufferedWriter writer = new BufferedWriter(new FileWriter(myFile));
+			writer.write("Hello world!");
+			writer.close();
+	
+			git.add().addFilepattern("java.java").call();
+			git.commit().setMessage("Initial commit").call();
+			
+			return repository;
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
+		return null;
+//		return getRepository("helloworld.git");
 	}
 
 	public static Repository getTicgitRepository() {
@@ -139,15 +165,10 @@ public class GitBlitSuite {
 		Executors.newSingleThreadExecutor().execute(new Runnable() {
 			@Override
 			public void run() {
-				GitBlitServer.main(
-						"--httpPort", "" + port,
-						"--httpsPort", "0",
-						"--shutdownPort", "" + shutdownPort,
-						"--gitPort", "" + gitPort,
-						"--sshPort", "" + sshPort,
-						"--repositoriesFolder", GitBlitSuite.REPOSITORIES.getAbsolutePath(),
-						"--userService", GitBlitSuite.USERSCONF.getAbsolutePath(),
-						"--settings", GitBlitSuite.SETTINGS.getAbsolutePath(),
+				GitBlitServer.main("--httpPort", "" + port, "--httpsPort", "0", "--shutdownPort", "" + shutdownPort,
+						"--gitPort", "" + gitPort, "--sshPort", "" + sshPort, "--repositoriesFolder",
+						GitBlitSuite.REPOSITORIES.getAbsolutePath(), "--userService",
+						GitBlitSuite.USERSCONF.getAbsolutePath(), "--settings", GitBlitSuite.SETTINGS.getAbsolutePath(),
 						"--baseFolder", "data");
 			}
 		});
